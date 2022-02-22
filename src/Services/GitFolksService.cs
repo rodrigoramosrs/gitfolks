@@ -1,4 +1,5 @@
 ﻿using GitFolks.Utils;
+using Octokit;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -21,14 +22,29 @@ namespace GitFolks.Services
         {
             Console.WriteLine($"Enumerating users from projects in org: { GlobalConfiguration.OrgName } ");
 
+            Dictionary<int, Author> AuthorList = new Dictionary<int, Author>();
+
+            //List<Author> authorList = new List<Author>();
             var ghProjectFromOrg = GithubService.GetAllGithubReposFrom(GlobalConfiguration.OrgName).GetAwaiter().GetResult();
             foreach (var project in ghProjectFromOrg)
             {
                 //Extracting users from commit
-                var users = GithubService.GetAllCommitsFromRepo(project.Id).GetAwaiter().GetResult();
-                Dictionary<string, string> userLists = new Dictionary<string, string>();
-                var distinctusers = users.Select(x => x.User).Distinct();
+                var commitList = GithubService.GetAllCommitsFromRepo(project.Id).GetAwaiter().GetResult();
+                var distinctAuthorList = commitList.Select(x => x.Author).Distinct(new AuthorComparer()).ToList();
+
+                foreach (var author in distinctAuthorList)
+                {
+                    if (author == null) continue;
+                    if (AuthorList.ContainsKey(author.Id)) continue;
+
+                    AuthorList.Add(author.Id, author);
+                }
+                //authorList.AddRange(distinctusers);
+
+                //var teste = commitList[0].Commit.Message;
             }
+
+
             return true;
         }
 
