@@ -46,12 +46,13 @@ namespace GitFolks.Services
                 }
                 catch (Exception ex)
                 {
+                    result = new List<GitHubCommit>();
                     Console.WriteLine(ex.ToString());
                 }
                 
 
 
-            } while (result != null);
+            } while (result == null);
 
             return result;
             //List<GitHubCommit> result = new List<GitHubCommit>();
@@ -97,6 +98,7 @@ namespace GitFolks.Services
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex.ToString());
+                    result = new List<Branch>();
                 }
             } while (result == null);
             return result;
