@@ -25,15 +25,35 @@ namespace GitFolks.Services
         public static async Task<IReadOnlyList<User>> GetAllColaboratorsFromRepo(long RepositoryId)
         {
             var ghClient = BuildGithubClient();
-            var commits = await ghClient.Repository.Commit.GetAll(RepositoryId);
+            //var commits = await ghClient.Repository.Commit.GetAll(RepositoryId);
             return await ghClient.Repository.Collaborator.GetAll(RepositoryId);
         }
 
         public static async Task<IReadOnlyList<GitHubCommit>> GetAllCommitsFromRepo(long RepositoryId)
         {
             var ghClient = BuildGithubClient();
-            return await ghClient.Repository.Commit.GetAll(RepositoryId);
+            IReadOnlyList<GitHubCommit> result = null;
+            do
+            {
+                try
+                {
+                    result = await ghClient.Repository.Commit.GetAll(RepositoryId);
+                }
+                catch (Octokit.ForbiddenException ex)
+                {
+                    Console.WriteLine("Waiting github rate limit...");
+                    Thread.Sleep(RatelimitTimeout);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                }
+                
 
+
+            } while (result != null);
+
+            return result;
             //List<GitHubCommit> result = new List<GitHubCommit>();
 
             //var apiOptions = new ApiOptions
@@ -62,7 +82,24 @@ namespace GitFolks.Services
         public static async Task<IReadOnlyList<Branch>> GetAllBranchesFromRepo(long RepositoryId)
         {
             var ghClient = BuildGithubClient();
-            return await ghClient.Repository.Branch.GetAll(RepositoryId);
+            IReadOnlyList<Branch> result = null;
+            do
+            {
+                try
+                {
+                    result = await ghClient.Repository.Branch.GetAll(RepositoryId);
+                }
+                catch (Octokit.ForbiddenException ex)
+                {
+                    Console.WriteLine("Waiting github rate limit...");
+                    Thread.Sleep(RatelimitTimeout);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                }
+            } while (result == null);
+            return result;
         }
 
         public static async Task<List<Repository>> GetAllGithubReposFrom(string OrgOrUser, RepoSearchSort SortBy = RepoSearchSort.Updated)
@@ -83,16 +120,39 @@ namespace GitFolks.Services
             //var FromDate = GlobalConfiguration.GithubFromDate.HasValue ? GlobalConfiguration.GithubFromDate.Value : DateTimeOffset.Now.AddMonths(-5);
 
             //repoRequest.Updated = new DateRange(FromDate, DateTimeOffset.Now.AddDays(1));
+
+            int rateLimitCount = 0;
             repoRequest.PerPage = PerPage;
             do
             {
-                repoRequest.Page = CurrentPage;
+                try
+                {
+                    repoRequest.Page = CurrentPage;
 
-                var queryResult = await ghClient.Search.SearchRepo(repoRequest);
-                result.AddRange(queryResult.Items);
+                    var queryResult = await ghClient.Search.SearchRepo(repoRequest);
+                    result.AddRange(queryResult.Items);
 
-                TotalRepos = queryResult.TotalCount;
-                CurrentPage++;
+                    TotalRepos = queryResult.TotalCount;
+                    CurrentPage++;
+                    rateLimitCount++;
+
+                    if (rateLimitCount > GlobalConfiguration.GithubRateRepoLimit)
+                    {
+                        rateLimitCount = 0;
+                        Console.WriteLine("Waiting github rate limit...");
+                        Thread.Sleep(RatelimitTimeout);
+                    }
+                }
+                catch (Octokit.ForbiddenException ex)
+                {
+                    Console.WriteLine("Waiting github rate limit...");
+                    Thread.Sleep(RatelimitTimeout);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                }
+
 
             } while (((CurrentPage * PerPage) < TotalRepos));
 
@@ -112,14 +172,37 @@ namespace GitFolks.Services
             };
 
             IReadOnlyList<User> queryResult = null;
+            int rateLimitCount = 0;
             do
             {
-                queryResult = await ghClient.Organization.Member.GetAll(GlobalConfiguration.OrgName, apiOptions);
+                
+                try
+                {
+                    queryResult = await ghClient.Organization.Member.GetAll(GlobalConfiguration.OrgName, apiOptions);
 
-                if(queryResult?.Count > 0)
-                    result.AddRange(queryResult);
+                    if (queryResult?.Count > 0)
+                        result.AddRange(queryResult);
 
-                apiOptions.StartPage++;
+                    apiOptions.StartPage++;
+                    rateLimitCount++;
+
+                    if (rateLimitCount > GlobalConfiguration.GithubRateRepoLimit)
+                    {
+                        rateLimitCount = 0;
+                        Console.WriteLine("Waiting github rate limit...");
+                        Thread.Sleep(RatelimitTimeout);
+                    }
+                }
+                catch (Octokit.ForbiddenException ex)
+                {
+                    Console.WriteLine("Waiting github rate limit...");
+                    Thread.Sleep(RatelimitTimeout);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                }
+
 
             } while (queryResult?.Count > 0);
 

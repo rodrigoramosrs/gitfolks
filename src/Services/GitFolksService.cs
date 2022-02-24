@@ -13,16 +13,22 @@ namespace GitFolks.Services
     {
         public static bool ListAllUsersFromOrg()
         {
-            //return ExtractUsersFromOrg();
-
-            return ExtractUsersFromOrgRepo();
+            ExtractUsersFromOrg();
+            ExtractUsersFromOrgByRepoCommit();
+            Console.WriteLine($"Done... ");
+            return true;
         }
 
-        private static bool ExtractUsersFromOrgRepo()
+        private static void ExtractUsersFromOrgByRepoCommit()
         {
             Console.WriteLine($"Enumerating users from projects in org: { GlobalConfiguration.OrgName } ");
 
             Dictionary<int, Author> AuthorList = new Dictionary<int, Author>();
+            StringBuilder userListContent = new StringBuilder();
+
+            string rootPath = $"{GlobalConfiguration.OutputPath}/{GlobalConfiguration.OrgName}";
+
+            if (!Directory.Exists(rootPath)) Directory.CreateDirectory(rootPath);
 
             //List<Author> authorList = new List<Author>();
             var ghProjectFromOrg = GithubService.GetAllGithubReposFrom(GlobalConfiguration.OrgName).GetAwaiter().GetResult();
@@ -44,17 +50,30 @@ namespace GitFolks.Services
                 //var teste = commitList[0].Commit.Message;
             }
 
+            Console.WriteLine($"Found {AuthorList.Count} users through github commit");
+            Console.WriteLine($" + [ Org - { GlobalConfiguration.OrgName } ]");
+            foreach (var author in AuthorList)
+            {
+                userListContent.AppendLine($"{author.Value.Login} | { author.Value.HtmlUrl }");
+                Console.WriteLine($" | {author.Value.Login} | { author.Value.HtmlUrl }");
+            }
+            
+            
+            
 
-            return true;
+            File.WriteAllText($"{rootPath}/{GlobalConfiguration.OrgName}_commit_user_list.txt", userListContent.ToString());
         }
 
-        private static bool ExtractUsersFromOrg()
+        private static void ExtractUsersFromOrg()
         {
             Console.WriteLine($"Enumerating users from org: { GlobalConfiguration.OrgName } ");
 
+            string rootPath = $"{GlobalConfiguration.OutputPath}/{GlobalConfiguration.OrgName}";
+            if (!Directory.Exists(rootPath)) Directory.CreateDirectory(rootPath);
+
             var githubUserList = GithubService.GetAllColaboratorsFromOrg().GetAwaiter().GetResult();
 
-            if (!Directory.Exists($"{GlobalConfiguration.OutputPath}")) Directory.CreateDirectory($"{GlobalConfiguration.OutputPath}");
+            
 
             Console.WriteLine($"Found {githubUserList.Count} user(s) for org { GlobalConfiguration.OrgName }");
             Console.WriteLine($"");
@@ -64,17 +83,14 @@ namespace GitFolks.Services
 
             foreach (var ghUser in githubUserList)
             {
-                userListContent.AppendLine($"{ghUser.Login} | { ghUser.Url }");
+                userListContent.AppendLine($"{ghUser.Login} | { ghUser.HtmlUrl }");
 
-                Console.WriteLine($" | {ghUser.Login} | { ghUser.Url }");
+                Console.WriteLine($" | {ghUser.Login} | { ghUser.HtmlUrl }");
 
             }
 
-            File.WriteAllText($"{GlobalConfiguration.OutputPath}/{GlobalConfiguration.OrgName}_user_list.txt", userListContent.ToString());
+            File.WriteAllText($"{rootPath}/{GlobalConfiguration.OrgName}_user_list.txt", userListContent.ToString());
             //Process.Start($"{GlobalConfiguration.OutputPath}");
-
-            Console.WriteLine($"Done... ");
-            return true;
         }
     }
 }
